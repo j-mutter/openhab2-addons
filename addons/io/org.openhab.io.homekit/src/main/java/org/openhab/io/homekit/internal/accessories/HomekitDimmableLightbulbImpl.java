@@ -14,10 +14,14 @@ import org.eclipse.smarthome.core.items.GenericItem;
 import org.eclipse.smarthome.core.items.GroupItem;
 import org.eclipse.smarthome.core.items.ItemRegistry;
 import org.eclipse.smarthome.core.library.items.DimmerItem;
+import org.eclipse.smarthome.core.library.items.SwitchItem;
+import org.eclipse.smarthome.core.library.types.OnOffType;
 import org.eclipse.smarthome.core.library.types.PercentType;
 import org.eclipse.smarthome.core.types.State;
 import org.openhab.io.homekit.internal.HomekitAccessoryUpdater;
 import org.openhab.io.homekit.internal.HomekitTaggedItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beowulfe.hap.HomekitCharacteristicChangeCallback;
 import com.beowulfe.hap.accessories.DimmableLightbulb;
@@ -27,7 +31,9 @@ import com.beowulfe.hap.accessories.DimmableLightbulb;
  *
  * @author Andy Lintner
  */
-class HomekitDimmableLightbulbImpl extends AbstractHomekitLightbulbImpl<DimmerItem>implements DimmableLightbulb {
+class HomekitDimmableLightbulbImpl extends AbstractHomekitLightbulbImpl<DimmerItem> implements DimmableLightbulb {
+
+    private Logger logger = LoggerFactory.getLogger(HomekitDimmableLightbulbImpl.class);
 
     public HomekitDimmableLightbulbImpl(HomekitTaggedItem taggedItem, ItemRegistry itemRegistry,
             HomekitAccessoryUpdater updater) {
@@ -52,6 +58,21 @@ class HomekitDimmableLightbulbImpl extends AbstractHomekitLightbulbImpl<DimmerIt
             ((DimmerItem) item).send(new PercentType(value));
         } else if (item instanceof GroupItem) {
             ((GroupItem) item).send(new PercentType(value));
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> setLightbulbPowerState(boolean value) throws Exception {
+        GenericItem item = getItem();
+        if (value) {
+            logger.debug("Intercepting ON command for dimmer so that the dimmer percentage value takes priority");
+        } else {
+            if (item instanceof SwitchItem) {
+                ((SwitchItem) item).send(OnOffType.OFF);
+            } else if (item instanceof GroupItem) {
+                ((GroupItem) item).send(OnOffType.OFF);
+            }
         }
         return CompletableFuture.completedFuture(null);
     }
